@@ -1,8 +1,11 @@
 """Actions. Each is one locked transaction that also appends its event."""
 from __future__ import annotations
 
+import json
 from datetime import date
+from pathlib import Path
 
+from . import stats
 from .models import APP_COLUMNS, EDITABLE_FIELDS, STATUSES, SUBMITTED, rule_eligible, stage_changed_ids
 from .storage import Store, Tx
 
@@ -84,3 +87,15 @@ def apply_rejection_rule(store: Store) -> list[str]:
                 _set_status(tx, row, "Rejected", f"auto: no reply after {days} days")
                 rejected.append(row["id"])
         return rejected
+
+
+def export_skip_reasons(store: Store, days: int = 30) -> Path:
+    """Write skip_reasons.json so the scan can tighten its rules."""
+    _, rows = store.read_apps()
+    payload = {
+        "generated": store.today().isoformat(),
+        "window_days": days,
+        "reasons": stats.skip_tally(rows, store.today(), days),
+    }
+    store.write_file("skip_reasons.json", json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    return store.data_dir / "skip_reasons.json"
