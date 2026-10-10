@@ -5,11 +5,13 @@ import html
 import subprocess
 from pathlib import Path
 
-from fastapi import APIRouter, Form, Request
+from urllib.parse import urlencode
+
+from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import service, stats
-from .models import OTHER_REASON, SKIP_REASONS, STAGE_BUTTONS, find_duplicates, tailor_prefix
+from .models import OTHER_REASON, SKIP_REASONS, STAGE_BUTTONS, STATUSES, find_duplicates, tailor_prefix
 
 router = APIRouter()
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
@@ -157,3 +159,40 @@ def reject(request: Request, app_id: str):
 def apply_rule(request: Request):
     ids = service.apply_rejection_rule(_store(request))
     return RedirectResponse(f"/followups?rejected={len(ids)}", status_code=303)
+
+
+@router.get("/all")
+def all_page(
+    request: Request, q: str = "", status: str = "", source: str = "", cv_variant: str = "",
+    date_from: str = "", date_to: str = "", sort: str = "last_update", direction: str = Query("desc", alias="dir"),
+):
+    _, rows = _store(request).read_apps()
+    found = stats.filter_rows(rows, q, status, source, cv_variant, date_from, date_to, sort, direction)
+    current = {"q": q, "status": status, "source": source, "cv_variant": cv_variant, "date_from": date_from, "date_to": date_to}
+    current = {k: v for k, v in current.items() if v}
+    sort_urls = {
+        col: "/all?" + urlencode({**current, "sort": col, "dir": "asc" if (sort == col and direction == "desc") else "desc"})
+        for col in stats.SORTABLE
+    }
+    return render(
+        request, "all.html", active="all", rows=found, f=current, sort=sort, direction=direction, sort_urls=sort_urls,
+        statuses=STATUSES, sources=sorted({r["source"] for r in rows if r["source"]}),
+        cvs=sorted({r["cv_variant"] for r in rows if r["cv_variant"]}),
+    )
+
+
+@router.get("/add")
+def add_form(request: Request):
+    return render(request, "add.html", statuses=["Ready", "Applied", "Incomplete"])
+
+
+@router.post("/add")
+def add(
+    request: Request, company: str = Form(""), role: str = Form(""), status: str = Form("Ready"),
+    location: str = Form(""), source: str = Form(""), job_link: str = Form(""), cv_variant: str = Form(""),
+    cv_file: str = Form(""), notes: str = Form(""),
+):
+    app_id = service.add_application(_store(request), dict(
+        company=company, role=role, status=status, location=location, source=source,
+        job_link=job_link, cv_variant=cv_variant, cv_file=cv_file, notes=notes))
+    return RedirectResponse(_detail_url(app_id), status_code=303)

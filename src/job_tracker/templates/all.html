@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}All applications · Job Tracker{% endblock %}
+{% block content %}
+<h1>All applications</h1>
+<form method="get" action="/all" class="reasons" role="search">
+  <label class="inline">Search <input type="search" name="q" value="{{ f.q or '' }}" placeholder="company, role, notes"></label>
+  <label class="inline">Status
+    <select name="status"><option value="">Any</option>
+      {% for s in statuses %}<option {% if f.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  <label class="inline">Source
+    <select name="source"><option value="">Any</option>
+      {% for s in sources %}<option {% if f.source == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  <label class="inline">CV
+    <select name="cv_variant"><option value="">Any</option>
+      {% for s in cvs %}<option {% if f.cv_variant == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  <label class="inline">From <input type="date" name="date_from" value="{{ f.date_from or '' }}"></label>
+  <label class="inline">To <input type="date" name="date_to" value="{{ f.date_to or '' }}"></label>
+  <input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="dir" value="{{ direction }}">
+  <button class="btn primary">Filter</button>
+  <a class="btn" href="/all">Reset</a>
+</form>
+<p role="status">{{ rows|length }} result{{ '' if rows|length == 1 else 's' }}</p>
+<table>
+  <thead><tr>
+    {% for col, label in [('company','Company'),('role','Role'),('status','Status'),('source','Source'),('cv_variant','CV'),('date_applied','Applied'),('last_update','Updated')] %}
+      <th scope="col" {% if sort == col %}aria-sort="{{ 'ascending' if direction == 'asc' else 'descending' }}"{% endif %}>
+        <a href="{{ sort_urls[col] }}">{{ label }}</a></th>
+    {% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr><td><a href="/a/{{ r.id }}">{{ r.company }}</a></td><td>{{ r.role }}</td><td>{{ r.status }}</td><td>{{ r.source }}</td>
+        <td>{{ r.cv_variant }}</td><td>{{ r.date_applied }}</td><td>{{ r.last_update }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
