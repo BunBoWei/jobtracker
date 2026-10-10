@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Job Tracker{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<section aria-labelledby="week-h">
+  <h2 id="week-h">This week</h2>
+  <p>{{ d.week_applied }} of {{ d.week_target }} applications</p>
+  <progress value="{{ [d.week_applied, d.week_target]|min }}" max="{{ [d.week_target, 1]|max }}" aria-label="Applications this week against target"></progress>
+</section>
+
+<div class="grid">
+  <div class="stat"><b>{{ d.submitted }}</b>submitted</div>
+  <div class="stat"><b>{{ d.positive }}</b>positive</div>
+  <div class="stat"><b>{{ d.rate|pct }}</b>positive rate</div>
+  <div class="stat"><b>{{ d.ready }}</b><a href="/">in the Ready queue</a></div>
+  <div class="stat"><b class="{{ 'overdue' if d.overdue else '' }}">{{ d.overdue }}</b><a href="/followups">overdue follow-ups</a></div>
+</div>
+
+<p role="status">
+  {% if d.rule == 'too_early' %}Rule check: too early (needs {{ d.rule_per }} submitted; you have {{ d.submitted }}).
+  {% elif d.rule == 'cv_problem' %}<strong class="error">Rule check: CV problem, not the market.</strong>
+    Fewer than {{ d.rule_min }} positive per {{ d.rule_per }} submitted.
+  {% else %}<span class="ok">Rule check: OK</span>, at least {{ d.rule_min }} positive per {{ d.rule_per }} submitted.{% endif %}
+</p>
+
+<section aria-labelledby="chart-h">
+  <h2 id="chart-h">Applications per week (last 12 weeks)</h2>
+  <canvas id="weekly" role="img" aria-label="Bar chart of applications per week"></canvas>
+</section>
+
+<section aria-labelledby="funnel-h">
+  <h2 id="funnel-h">Funnel</h2>
+  <table>
+    <thead><tr><th>Stage</th><th>Count</th></tr></thead>
+    <tbody>
+      <tr><td>Submitted</td><td>{{ d.funnel.submitted }}</td></tr>
+      <tr><td>Positive (assessment or better)</td><td>{{ d.funnel.positive }}</td></tr>
+      <tr><td>Interview or better</td><td>{{ d.funnel.interview }}</td></tr>
+      <tr><td>Offer</td><td>{{ d.funnel.offer }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{% macro breakdown(title, rows) %}
+<section>
+  <h2>{{ title }}</h2>
+  <table>
+    <thead><tr><th>Group</th><th>Submitted</th><th>Positive</th><th>Rate</th></tr></thead>
+    <tbody>
+    {% for x in rows %}<tr><td>{{ x.key }}</td><td>{{ x.submitted }}</td><td>{{ x.positive }}</td><td>{{ x.rate|pct }}</td></tr>
+    {% else %}<tr><td colspan="4" class="meta">No submissions yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endmacro %}
+{{ breakdown('By CV variant', d.by_cv) }}
+{{ breakdown('By source', d.by_source) }}
+{{ breakdown('By role type', d.by_role) }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  if (window.Chart) {
+    new Chart(document.getElementById('weekly'), {
+      type: 'bar',
+      data: {
+        labels: {{ d.weekly|map(attribute='week')|list|tojson }},
+        datasets: [{ label: 'Applications', data: {{ d.weekly|map(attribute='count')|list|tojson }},
+                     backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--accent') }]
+      },
+      options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+    });
+  }
+</script>
+{% endblock %}

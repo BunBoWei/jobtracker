@@ -196,3 +196,10 @@ def add(
         company=company, role=role, status=status, location=location, source=source,
         job_link=job_link, cv_variant=cv_variant, cv_file=cv_file, notes=notes))
     return RedirectResponse(_detail_url(app_id), status_code=303)
+
+
+@router.get("/dashboard")
+def dashboard(request: Request):
+    store = _store(request)
+    _, rows = store.read_apps()
+    return render(request, "dashboard.html", active="dashboard", d=stats.dashboard(rows, store.settings(), store.today()))
