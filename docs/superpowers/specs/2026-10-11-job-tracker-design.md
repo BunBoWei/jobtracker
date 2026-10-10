@@ -18,7 +18,7 @@ Success criteria:
 - Dependencies: fastapi, jinja2, filelock, uvicorn, python-multipart. Dev: pytest, httpx. (uvicorn, python-multipart, httpx approved by the user on 2026-10-11. Any further dependency needs approval first.)
 - App code lives in this repo. Only data lives in the vault. There is no Excel import; the agent creates and edits the CSVs directly.
 - Data dir from env `JOBS_DATA_DIR`, default `~/Library/CloudStorage/GoogleDrive-binhp8699@gmail.com/My Drive/DriveSyncFiles/Obsidian/Plans/Employment/Job Tracker`. CVs resolve against `<data dir>/../` (paths in `cv_file` are relative to `Plans/Employment/`, so the base is the parent of the data dir).
-- **Start/stop (changed during brainstorming):** the server is started on demand and runs until `jobs stop`. There is no heartbeat, no idle detection and no auto-shutdown. Nothing starts at boot (no LaunchAgent, no login item).
+- **Start/stop (changed during brainstorming):** the server is started on demand and runs until `jobtracker stop`. There is no heartbeat, no idle detection and no auto-shutdown. Nothing starts at boot (no LaunchAgent, no login item).
 
 ## 3. Modules
 
@@ -30,7 +30,7 @@ Success criteria:
 | `stats.py` | Dashboard numbers, role-type derivation, skip-reason tally and export. Pure functions over rows. |
 | `routes.py` | FastAPI routes, Jinja templates, HTMX partials, corrupt-CSV error page. |
 | `server.py` | App factory, `/health`, uvicorn entry point. |
-| `cli.py` | `jobs`, `jobs stop`, `jobs status`, `jobs install-launcher`. |
+| `cli.py` | `jobtracker`, `jobtracker stop`, `jobtracker status`, `jobtracker install-launcher`. |
 
 ## 4. Data model
 
@@ -79,10 +79,10 @@ UI: top nav (Queue, Follow-ups, All, Dashboard), accessible, mobile-friendly, li
 
 ## 7. CLI and launching
 
-- `jobs`: if `GET /health` answers on port 8765, open the browser and exit. Otherwise spawn a detached uvicorn (log: `~/Library/Logs/job-tracker.log`), wait for `/health`, open the browser, return to the prompt.
-- `jobs stop`: confirms `/health` identifies Job Tracker, finds the listening process with `lsof -ti tcp:PORT -sTCP:LISTEN`, sends SIGTERM and waits for it to exit. uvicorn finishes the in-flight request first, so a write in progress completes. No pidfile is used, so a recycled PID can never be signalled.
-- `jobs status`: reports running or not.
-- `jobs install-launcher`: builds `~/Applications/Job Tracker.app` with `osacompile`, running the `jobs` binary by full path. Simple icon if easy, otherwise skipped.
+- `jobtracker`: if `GET /health` answers on port 8765, open the browser and exit. Otherwise spawn a detached uvicorn (log: `~/Library/Logs/job-tracker.log`), wait for `/health`, open the browser, return to the prompt.
+- `jobtracker stop`: confirms `/health` identifies Job Tracker, finds the listening process with `lsof -ti tcp:PORT -sTCP:LISTEN`, sends SIGTERM and waits for it to exit. uvicorn finishes the in-flight request first, so a write in progress completes. No pidfile is used, so a recycled PID can never be signalled.
+- `jobtracker status`: reports running or not.
+- `jobtracker install-launcher`: builds `~/Applications/Job Tracker.app` with `osacompile`, running the `jobtracker` binary by full path. Simple icon if easy, otherwise skipped.
 - Installed globally with `uv tool install --editable .`.
 
 ## 8. Testing and verification
@@ -91,11 +91,11 @@ Unit tests (pytest, temp dirs): CSV round trip; unknown columns preserved; statu
 
 Concurrency test: a hook between the app's read and write lets a separate process append row B using the lock protocol while the app updates row A; both changes must survive.
 
-Lifecycle tests: `jobs` when already running opens the browser and starts no second server; `jobs stop` stops the server and frees the port, including when issued during a write.
+Lifecycle tests: `jobtracker` when already running opens the browser and starts no second server; `jobtracker stop` stops the server and frees the port, including when issued during a write.
 
 Corrupt-file test: a malformed CSV gives an error page and the file is byte-for-byte unchanged.
 
-Then: run the full suite and show the output; start the app against a copy of the data folder (a copy of the agent's CSVs if they exist, otherwise a generated sample; never the real folder), walk through every feature, list what was clicked and seen, fix anything broken. Finish with a README: how to start (`jobs`, Spotlight), how to stop, where data lives, CSV schema, and how the scan should write (lock, re-read, append by id, atomic replace).
+Then: run the full suite and show the output; start the app against a copy of the data folder (a copy of the agent's CSVs if they exist, otherwise a generated sample; never the real folder), walk through every feature, list what was clicked and seen, fix anything broken. Finish with a README: how to start (`jobtracker`, Spotlight), how to stop, where data lives, CSV schema, and how the scan should write (lock, re-read, append by id, atomic replace).
 
 ## 9. Out of scope
 

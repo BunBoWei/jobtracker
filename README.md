@@ -10,11 +10,11 @@ FastAPI + Jinja2 + HTMX. Single user, no login, `http://localhost:8765`.
 
 ## Start and stop
 
-    jobs            # starts the server if needed, opens the browser
-    jobs status
-    jobs stop       # stops the server (finishes any request in flight first)
+    jobtracker      # starts the server if needed, opens the browser
+    jobtracker status
+    jobtracker stop # stops the server (finishes any request in flight first)
 
-Spotlight: run `jobs install-launcher` once, then press Cmd+Space, type "Job Tracker", Enter.
+Spotlight: run `jobtracker install-launcher` once, then press Cmd+Space, type "Job Tracker", Enter.
 
 The server does **not** stop by itself. It only runs after you start it, and nothing starts at boot.
 Logs: `~/Library/Logs/job-tracker.log`.
@@ -75,3 +75,5 @@ file replaces could leave a status change without its event.
 ## Develop
 
     uv run pytest
+
+Note: the command is `jobtracker`, not `jobs`, because `jobs` is a built-in command in zsh and bash.

@@ -94,3 +94,15 @@ def test_stop_during_a_write_lets_the_write_finish(env):
 def test_launcher_source_quotes_path():
     src = cli.launcher_source('/Users/a b/.local/bin/jo"bs')
     assert src == 'do shell script quoted form of "/Users/a b/.local/bin/jo\\"bs"\n'
+
+
+def test_command_is_not_named_jobs(capsys):
+    """`jobs` is a zsh builtin, so the installed command must be called something else."""
+    import tomllib
+    from pathlib import Path
+
+    scripts = tomllib.loads(Path(__file__).parents[1].joinpath("pyproject.toml").read_text())["project"]["scripts"]
+    assert scripts == {"jobtracker": "job_tracker.cli:main"}
+    with pytest.raises(SystemExit):
+        cli.main(["--help"])
+    assert "usage: jobtracker" in capsys.readouterr().out

@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-jobs = "job_tracker.cli:main"
+jobtracker = "job_tracker.cli:main"
 
 [dependency-groups]
 dev = ["pytest", "httpx"]

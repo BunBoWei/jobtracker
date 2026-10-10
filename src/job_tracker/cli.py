@@ -1,4 +1,4 @@
-"""The `jobs` command. Starts the server on demand and stops it on request; nothing runs at boot."""
+"""The `jobtracker` command. Starts the server on demand and stops it on request; nothing runs at boot."""
 from __future__ import annotations
 
 import argparse
@@ -92,7 +92,7 @@ def launcher_source(jobs_path: str) -> str:
 
 
 def install_launcher() -> Path:
-    jobs_path = shutil.which("jobs") or str(Path(sys.argv[0]).resolve())
+    jobs_path = shutil.which("jobtracker") or str(Path(sys.argv[0]).resolve())
     dest = Path.home() / "Applications" / "Job Tracker.app"
     dest.parent.mkdir(exist_ok=True)
     if dest.exists():
@@ -107,7 +107,7 @@ def install_launcher() -> Path:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="jobs", description="Local job application tracker")
+    parser = argparse.ArgumentParser(prog="jobtracker", description="Local job application tracker")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("stop", help="stop the server")
     sub.add_parser("status", help="say whether the server is running")
