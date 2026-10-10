@@ -80,9 +80,8 @@ UI: top nav (Queue, Follow-ups, All, Dashboard), accessible, mobile-friendly, li
 ## 7. CLI and launching
 
 - `jobs`: if `GET /health` answers on port 8765, open the browser and exit. Otherwise spawn a detached uvicorn (log: `~/Library/Logs/job-tracker.log`), wait for `/health`, open the browser, return to the prompt.
-- `jobs stop`: reads the pidfile, sends SIGTERM, waits for the port to free; handles a stale pidfile. uvicorn finishes the in-flight request before exiting, so a write in progress completes.
+- `jobs stop`: confirms `/health` identifies Job Tracker, finds the listening process with `lsof -ti tcp:PORT -sTCP:LISTEN`, sends SIGTERM and waits for it to exit. uvicorn finishes the in-flight request first, so a write in progress completes. No pidfile is used, so a recycled PID can never be signalled.
 - `jobs status`: reports running or not.
-- Pidfile location: `~/Library/Application Support/job-tracker/` (outside the Drive-synced vault).
 - `jobs install-launcher`: builds `~/Applications/Job Tracker.app` with `osacompile`, running the `jobs` binary by full path. Simple icon if easy, otherwise skipped.
 - Installed globally with `uv tool install --editable .`.
 
