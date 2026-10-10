@@ -107,3 +107,9 @@ def test_corrupt_csv_shows_error_page_and_file_unchanged(client, store):
         r = getattr(client, method)(url)
         assert r.status_code == 500 and "applications.csv" in r.text and "not changed" in r.text
     assert store.apps_path.read_bytes() == before
+
+
+def test_unprioritised_group_heading_reads_naturally(client, seed):
+    seed(company="NoPri")
+    html = client.get("/").text
+    assert "<h2>Unprioritised</h2>" in html and "Unprioritised priority" not in html
