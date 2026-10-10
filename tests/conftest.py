@@ -22,3 +22,14 @@ def seed(store):
         return service.add_application(store, {**base, **fields})
 
     return _seed
+
+from fastapi.testclient import TestClient
+
+from job_tracker.server import create_app
+
+HX = {"HX-Request": "true"}
+
+
+@pytest.fixture
+def client(store):
+    return TestClient(create_app(store.data_dir, today=store.today))

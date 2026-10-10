@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Job Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <script>
+    // Show server error messages (4xx) that HTMX would otherwise discard.
+    document.addEventListener('htmx:beforeSwap', function (e) {
+      var s = e.detail.xhr.status;
+      if (s >= 400 && s < 500) { e.detail.shouldSwap = true; e.detail.isError = false; }
+    });
+  </script>
+</head>
+<body>
+  <nav aria-label="Main">
+    <strong>Job Tracker</strong>
+    <a href="/" {% if active == 'queue' %}aria-current="page"{% endif %}>Queue</a>
+    <a href="/followups" {% if active == 'followups' %}aria-current="page"{% endif %}>Follow-ups</a>
+    <a href="/all" {% if active == 'all' %}aria-current="page"{% endif %}>All</a>
+    <a href="/dashboard" {% if active == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
+    <a href="/add" class="spacer">+ Add</a>
+  </nav>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Queue · Job Tracker{% endblock %}
+{% block content %}
+<h1>Queue <span class="meta">{{ total }} ready</span></h1>
+{% for label, rows in groups %}
+  <h2>{{ label }} priority</h2>
+  {% for r in rows %}{% include "_card.html" %}{% endfor %}
+{% else %}
+  <p>No jobs waiting. The scan adds suggestions here; you can also <a href="/add">add one yourself</a>.</p>
+{% endfor %}
+
+<section aria-labelledby="skip-h">
+  <h2 id="skip-h">Skip reasons, last 30 days</h2>
+  {% if tally %}
+    <table>
+      <thead><tr><th>Reason</th><th>Count</th><th>Examples</th></tr></thead>
+      <tbody>
+      {% for t in tally %}
+        <tr><td>{{ t.reason }}</td><td>{{ t.count }}</td>
+            <td>{% for e in t.examples %}{{ e.company }} - {{ e.role }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}<p class="meta">Nothing skipped yet.</p>{% endif %}
+  <button class="btn" type="button" hx-post="/skip-reasons/export" hx-target="#export-msg" hx-swap="innerHTML">Export skip_reasons.json</button>
+  <span id="export-msg" role="status" class="meta"></span>
+</section>
+{% endblock %}
