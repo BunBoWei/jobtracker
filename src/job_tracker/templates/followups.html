@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Follow-ups · Job Tracker{% endblock %}
+{% block content %}
+<h1>Follow-ups</h1>
+{% if rejected != '' %}<p class="ok" role="status">Rejected {{ rejected }} job{{ '' if rejected == '1' else 's' }} under the {{ days }}-day rule.</p>{% endif %}
+
+{% macro action_rows(items, css) %}
+  {% for r in items %}
+  <tr>
+    <td><a href="/a/{{ r.id }}">{{ r.company }}</a> <span class="meta">{{ r.role }}</span></td>
+    <td>{{ r.next_action or '-' }}</td>
+    <td class="{{ css }}">{{ r.next_action_date }}</td>
+  </tr>
+  {% endfor %}
+{% endmacro %}
+
+<h2 class="overdue">Overdue ({{ overdue|length }})</h2>
+{% if overdue %}<table><thead><tr><th>Job</th><th>Action</th><th>Due</th></tr></thead><tbody>{{ action_rows(overdue, 'overdue') }}</tbody></table>
+{% else %}<p class="meta">Nothing overdue.</p>{% endif %}
+
+<h2>Due this week ({{ due_week|length }})</h2>
+{% if due_week %}<table><thead><tr><th>Job</th><th>Action</th><th>Due</th></tr></thead><tbody>{{ action_rows(due_week, '') }}</tbody></table>
+{% else %}<p class="meta">Nothing due in the next 7 days.</p>{% endif %}
+
+<h2>About to auto-reject ({{ about_to_reject|length }})</h2>
+<p class="meta">Applied jobs {{ days - 5 }} to {{ days - 1 }} days old with no reply.</p>
+{% if about_to_reject %}
+<table>
+  <thead><tr><th>Job</th><th>Applied</th><th></th></tr></thead>
+  <tbody>
+  {% for r in about_to_reject %}
+    <tr>
+      <td><a href="/a/{{ r.id }}">{{ r.company }}</a> <span class="meta">{{ r.role }}</span></td>
+      <td>{{ r.date_applied }}</td>
+      <td><button class="btn danger" hx-post="/a/{{ r.id }}/reject" hx-target="closest tr" hx-swap="outerHTML">Mark rejected</button></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<form method="post" action="/followups/apply-rule">
+  <button class="btn danger">Apply {{ days }}-day rule ({{ rule_candidates|length }} job{{ '' if rule_candidates|length == 1 else 's' }} would be rejected)</button>
+</form>
+{% endblock %}

@@ -135,3 +135,25 @@ def save_details(
                   notes=notes, cv_variant=cv_variant, cv_file=cv_file, job_link=job_link)
     service.update_details(_store(request), app_id, fields)
     return RedirectResponse(_detail_url(app_id), status_code=303)
+
+
+@router.get("/followups")
+def followups_page(request: Request, rejected: str = ""):
+    store = _store(request)
+    _, rows = store.read_apps()
+    _, events = store.read_events()
+    settings = store.settings()
+    return render(request, "followups.html", active="followups", days=settings["auto_reject_days"],
+                  rejected=rejected, **stats.followups(rows, events, settings, store.today()))
+
+
+@router.post("/a/{app_id}/reject")
+def reject(request: Request, app_id: str):
+    service.change_status(_store(request), app_id, "Rejected", "no reply")
+    return reply(request, "", "/followups")
+
+
+@router.post("/followups/apply-rule")
+def apply_rule(request: Request):
+    ids = service.apply_rejection_rule(_store(request))
+    return RedirectResponse(f"/followups?rejected={len(ids)}", status_code=303)
