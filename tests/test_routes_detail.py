@@ -59,3 +59,27 @@ def test_detail_unknown_id_is_404_and_hostile_link_not_rendered(client, seed):
     app_id = seed(job_link="javascript:alert(1)", notes="<img src=x onerror=alert(1)>")
     html = client.get(f"/a/{app_id}").text
     assert 'href="javascript:' not in html and "<img src=x" not in html
+
+
+def test_saving_details_does_not_overwrite_fields_changed_elsewhere(client, store, seed):
+    app_id = seed(notes="old notes")
+    # the user has the page open; meanwhile the scan rewrites notes
+    with store.transaction() as tx:
+        tx.find(app_id)["notes"] = "scan wrote this"
+    form = {"contact": "Sam", "orig_contact": "", "notes": "old notes", "orig_notes": "old notes"}
+    assert client.post(f"/a/{app_id}/details", data=form).status_code in (200, 303)
+    row = store.get_app(app_id)
+    assert row["contact"] == "Sam" and row["notes"] == "scan wrote this"
+
+
+def test_details_form_carries_original_values(client, seed):
+    app_id = seed(notes="n1")
+    html = client.get(f"/a/{app_id}").text
+    assert 'name="orig_notes"' in html and 'name="orig_contact"' in html
+
+
+def test_stale_reject_does_not_resurrect_a_moved_job(client, store, seed):
+    app_id = seed(status="Applied")
+    client.post(f"/a/{app_id}/status", data={"status": "Interview"})
+    assert client.post(f"/a/{app_id}/reject").status_code == 400
+    assert store.get_app(app_id)["status"] == "Interview"

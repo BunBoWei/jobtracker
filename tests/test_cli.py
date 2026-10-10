@@ -18,6 +18,7 @@ def free_port():
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     port = free_port()
+    (tmp_path / "Employment").mkdir()  # the data folder's parent (Google Drive) must exist; the folder itself is created
     monkeypatch.setenv("JOBS_PORT", str(port))
     monkeypatch.setenv("JOBS_DATA_DIR", str(tmp_path / "Employment" / "Job Tracker"))
     monkeypatch.setenv("JOBS_LOG_FILE", str(tmp_path / "server.log"))

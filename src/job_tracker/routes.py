@@ -8,13 +8,15 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import service, stats
-from .models import OTHER_REASON, SKIP_REASONS, STAGE_BUTTONS, STATUSES, find_duplicates, tailor_prefix
+from .models import EDITABLE_FIELDS, OTHER_REASON, SKIP_REASONS, STAGE_BUTTONS, STATUSES, find_duplicates, tailor_prefix
 
 router = APIRouter()
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+CV_SUFFIXES = {".pdf", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt", ".pages"}
 
 
 def open_file(path: Path) -> None:
@@ -83,6 +85,8 @@ def open_cv(request: Request, app_id: str):
     path = (base / rel).resolve()
     if not path.is_relative_to(base):
         return HTMLResponse("That CV path is outside the Employment folder.", status_code=400)
+    if path.suffix.lower() not in CV_SUFFIXES:  # `open` would run scripts and apps
+        return HTMLResponse("Only document files (pdf, doc, docx, txt, md, rtf, odt, pages) can be opened here.", status_code=400)
     if not path.is_file():
         return HTMLResponse(f"CV file not found: {html.escape(rel)}", status_code=404)
     open_file(path)
@@ -128,14 +132,12 @@ def set_status(request: Request, app_id: str, status: str = Form(...), note: str
 
 
 @router.post("/a/{app_id}/details")
-def save_details(
-    request: Request, app_id: str,
-    next_action: str = Form(""), next_action_date: str = Form(""), contact: str = Form(""), salary: str = Form(""),
-    notes: str = Form(""), cv_variant: str = Form(""), cv_file: str = Form(""), job_link: str = Form(""),
-):
-    fields = dict(next_action=next_action, next_action_date=next_action_date, contact=contact, salary=salary,
-                  notes=notes, cv_variant=cv_variant, cv_file=cv_file, job_link=job_link)
-    service.update_details(_store(request), app_id, fields)
+async def save_details(request: Request, app_id: str):
+    """Save only the fields the user actually changed, so a scan edit made meanwhile is not reverted."""
+    form = await request.form()
+    norm = lambda v: (v or "").replace("\r\n", "\n")
+    fields = {k: form[k] for k in EDITABLE_FIELDS if k in form and norm(form[k]) != norm(form.get(f"orig_{k}"))}
+    await run_in_threadpool(service.update_details, _store(request), app_id, fields)
     return RedirectResponse(_detail_url(app_id), status_code=303)
 
 
@@ -151,7 +153,7 @@ def followups_page(request: Request, rejected: str = ""):
 
 @router.post("/a/{app_id}/reject")
 def reject(request: Request, app_id: str):
-    service.change_status(_store(request), app_id, "Rejected", "no reply")
+    service.change_status(_store(request), app_id, "Rejected", "no reply", expect={"Applied"})
     return reply(request, "", "/followups")
 
 

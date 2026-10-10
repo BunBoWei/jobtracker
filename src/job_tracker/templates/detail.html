@@ -31,6 +31,14 @@
 <section aria-labelledby="fu-h">
   <h2 id="fu-h">Follow-up and details</h2>
   <form method="post" action="/a/{{ row.id }}/details">
+    <input type="hidden" name="orig_next_action" value="{{ row.next_action }}">
+    <input type="hidden" name="orig_next_action_date" value="{{ row.next_action_date }}">
+    <input type="hidden" name="orig_contact" value="{{ row.contact }}">
+    <input type="hidden" name="orig_salary" value="{{ row.salary }}">
+    <input type="hidden" name="orig_cv_variant" value="{{ row.cv_variant }}">
+    <input type="hidden" name="orig_cv_file" value="{{ row.cv_file }}">
+    <input type="hidden" name="orig_job_link" value="{{ row.job_link }}">
+    <input type="hidden" name="orig_notes" value="{{ row.notes }}">
     <label>Next action <input name="next_action" value="{{ row.next_action }}"></label>
     <label>Next action date <input type="date" name="next_action_date" value="{{ row.next_action_date }}"></label>
     <label>Contact <input name="contact" value="{{ row.contact }}"></label>

@@ -42,6 +42,15 @@ class AppNotFound(Exception):
     pass
 
 
+class DataDirMissing(Exception):
+    """The data folder and its parent are both missing (e.g. Google Drive is not mounted)."""
+
+    def __init__(self, data_dir: Path):
+        super().__init__(f"The data folder was not found: {data_dir}. Is Google Drive mounted and signed in? "
+                         "Nothing was created.")
+        self.data_dir = data_dir
+
+
 def read_csv(path: Path, default_header: list[str], required=("id",)) -> tuple[list[str], list[dict]]:
     if not path.exists() or path.stat().st_size == 0:
         return list(default_header), []
@@ -143,12 +152,19 @@ class Store:
         self.events_path = self.data_dir / "events.csv"
         self.lock_path = self.data_dir / ".tracker.lock"
 
+    def _check_available(self) -> None:
+        """First run is fine (folder missing, parent present). A missing parent means Drive is not mounted."""
+        if not self.data_dir.exists() and not self.data_dir.parent.exists():
+            raise DataDirMissing(self.data_dir)
+
     # ---- reads (no lock needed: writers replace files atomically) ----
     def read_apps(self) -> tuple[list[str], list[dict]]:
+        self._check_available()
         header, rows = read_csv(self.apps_path, APP_COLUMNS)
         return _with_known_columns(header, rows, APP_COLUMNS), rows
 
     def read_events(self) -> tuple[list[str], list[dict]]:
+        self._check_available()
         header, rows = read_csv(self.events_path, EVENT_COLUMNS)
         return _with_known_columns(header, rows, EVENT_COLUMNS), rows
 
@@ -159,6 +175,7 @@ class Store:
         raise AppNotFound(app_id)
 
     def settings(self) -> dict:
+        self._check_available()
         s = deepcopy(DEFAULT_SETTINGS)
         path = self.data_dir / "settings.json"
         if path.exists():
@@ -189,7 +206,8 @@ class Store:
     # ---- writes ----
     @contextmanager
     def locked(self):
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self._check_available()
+        self.data_dir.mkdir(exist_ok=True)  # only the leaf: never invent a missing Drive path
         with FileLock(str(self.lock_path)):
             yield
 

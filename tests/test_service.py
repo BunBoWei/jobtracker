@@ -131,3 +131,31 @@ def test_rule_writes_one_event_each(store, seed):
     assert sorted(service.apply_rejection_rule(store)) == sorted(ids)
     for app_id in ids:
         assert [e["to_status"] for e in events_for(store, app_id)] == ["Applied", "Rejected"]
+
+
+def test_mark_applied_and_skip_refuse_jobs_that_are_no_longer_ready(store, seed):
+    app_id = seed(status="Applied", date_applied="2026-09-01")
+    events_before = len(events_for(store, app_id))
+    with pytest.raises(ValueError, match="no longer"):
+        service.mark_applied(store, app_id, "ad")
+    with pytest.raises(ValueError, match="no longer"):
+        service.skip(store, app_id, "too senior")
+    row = store.get_app(app_id)
+    assert (row["status"], row["date_applied"]) == ("Applied", "2026-09-01")   # 30-day clock not restarted
+    assert len(events_for(store, app_id)) == events_before
+    assert store.read_ad(app_id) == ""
+
+
+def test_incomplete_jobs_can_still_be_applied_or_skipped(store, seed):
+    a, b = seed(status="Incomplete"), seed(status="Incomplete")
+    service.mark_applied(store, a)
+    service.skip(store, b, "too junior")
+    assert (store.get_app(a)["status"], store.get_app(b)["status"]) == ("Applied", "Skipped")
+
+
+def test_change_status_expect(store, seed):
+    app_id = seed(status="Applied")
+    with pytest.raises(ValueError, match="no longer"):
+        service.change_status(store, app_id, "Rejected", expect={"Ready"})
+    service.change_status(store, app_id, "Rejected", expect={"Applied"})
+    assert store.get_app(app_id)["status"] == "Rejected"

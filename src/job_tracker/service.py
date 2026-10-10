@@ -10,6 +10,15 @@ from .models import APP_COLUMNS, EDITABLE_FIELDS, STATUSES, SUBMITTED, rule_elig
 from .storage import Store, Tx
 
 
+def _require(row: dict, allowed: set[str] | None) -> None:
+    """Stale tabs and double clicks must not move a job that has changed since the page was drawn."""
+    if allowed is not None and row.get("status") not in allowed:
+        raise ValueError(f"This job is no longer {' or '.join(sorted(allowed))} (it is {row.get('status') or 'blank'}). Reload the page.")
+
+
+OPEN_STATUSES = {"Ready", "Incomplete"}
+
+
 def _set_status(tx: Tx, row: dict, new_status: str, note: str = "") -> None:
     old = row.get("status", "")
     row["status"] = new_status
@@ -32,16 +41,19 @@ def add_application(store: Store, fields: dict) -> str:
         return row["id"]
 
 
-def change_status(store: Store, app_id: str, new_status: str, note: str = "") -> None:
+def change_status(store: Store, app_id: str, new_status: str, note: str = "", expect: set[str] | None = None) -> None:
     if new_status not in STATUSES:
         raise ValueError(f"unknown status: {new_status}")
     with store.transaction() as tx:
-        _set_status(tx, tx.find(app_id), new_status, note.strip())
+        row = tx.find(app_id)
+        _require(row, expect)
+        _set_status(tx, row, new_status, note.strip())
 
 
 def mark_applied(store: Store, app_id: str, ad_text: str = "") -> None:
     with store.transaction() as tx:
         row = tx.find(app_id)
+        _require(row, OPEN_STATUSES)
         _set_status(tx, row, "Applied")
         row["date_applied"] = tx.today
     if ad_text.strip():  # after the transaction: the lock is not re-entrant across instances
@@ -54,6 +66,7 @@ def skip(store: Store, app_id: str, reason: str) -> None:
         raise ValueError("a skip reason is required")
     with store.transaction() as tx:
         row = tx.find(app_id)
+        _require(row, OPEN_STATUSES)
         _set_status(tx, row, "Skipped", reason)
         row["skip_reason"] = reason
 
