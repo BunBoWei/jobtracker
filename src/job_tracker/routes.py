@@ -9,7 +9,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import service, stats
-from .models import OTHER_REASON, SKIP_REASONS
+from .models import OTHER_REASON, SKIP_REASONS, STAGE_BUTTONS, find_duplicates, tailor_prefix
 
 router = APIRouter()
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
@@ -91,3 +91,47 @@ def open_cv(request: Request, app_id: str):
 def export_skip_reasons(request: Request):
     path = service.export_skip_reasons(_store(request))
     return reply(request, f"Saved {html.escape(path.name)} in the data folder.", "/")
+
+
+def _detail_url(app_id: str) -> str:
+    return f"/a/{app_id}"
+
+
+@router.get("/a/{app_id}")
+def detail(request: Request, app_id: str):
+    store = _store(request)
+    row = store.get_app(app_id)
+    _, rows = store.read_apps()
+    _, events = store.read_events()
+    timeline = sorted((e for e in events if e["application_id"] == app_id), key=lambda e: (e["date"], e["id"]), reverse=True)
+    return render(
+        request, "detail.html", row=row, timeline=timeline, ad=store.read_ad(app_id), prefix=tailor_prefix(row),
+        dups=find_duplicates(rows, row["company"], row["role"], store.today(), exclude_id=app_id),
+        stage_buttons=STAGE_BUTTONS,
+    )
+
+
+@router.post("/a/{app_id}/ad")
+def save_ad(request: Request, app_id: str, ad_text: str = Form("")):
+    service.save_ad(_store(request), app_id, ad_text)
+    return RedirectResponse(_detail_url(app_id), status_code=303)
+
+
+@router.post("/a/{app_id}/status")
+def set_status(request: Request, app_id: str, status: str = Form(...), note: str = Form("")):
+    if status not in STAGE_BUTTONS:
+        raise ValueError("Pick one of the stage buttons.")
+    service.change_status(_store(request), app_id, status, note)
+    return RedirectResponse(_detail_url(app_id), status_code=303)
+
+
+@router.post("/a/{app_id}/details")
+def save_details(
+    request: Request, app_id: str,
+    next_action: str = Form(""), next_action_date: str = Form(""), contact: str = Form(""), salary: str = Form(""),
+    notes: str = Form(""), cv_variant: str = Form(""), cv_file: str = Form(""), job_link: str = Form(""),
+):
+    fields = dict(next_action=next_action, next_action_date=next_action_date, contact=contact, salary=salary,
+                  notes=notes, cv_variant=cv_variant, cv_file=cv_file, job_link=job_link)
+    service.update_details(_store(request), app_id, fields)
+    return RedirectResponse(_detail_url(app_id), status_code=303)

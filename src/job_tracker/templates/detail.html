@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ row.company }} · Job Tracker{% endblock %}
+{% block content %}
+<h1>{{ row.company }} <span class="meta">{{ row.role }}</span></h1>
+<p><strong>{{ row.status }}</strong>
+  {% if row.date_applied %} · applied {{ row.date_applied }}{% endif %}
+  · {{ row.location or 'location n/a' }} · {{ row.source or 'source n/a' }}
+  {% if row.job_link.lower().startswith(('http://', 'https://')) %}
+    · <a href="{{ row.job_link }}" target="_blank" rel="noopener">Open ad</a>
+  {% endif %}
+  <button class="btn" type="button" hx-post="/a/{{ row.id }}/open-cv" hx-target="#cv-msg" hx-swap="innerHTML">Open CV</button>
+  <span id="cv-msg" role="status" class="meta"></span>
+</p>
+{% if row.skip_reason %}<p class="meta">Skip reason: {{ row.skip_reason }}</p>{% endif %}
+
+{% if dups %}
+<div class="banner" role="alert">
+  <strong>Possible duplicate:</strong>
+  {% for d in dups %}<a href="/a/{{ d.id }}">{{ d.company }} - {{ d.role }}</a> ({{ d.status }}){% if not loop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<section aria-labelledby="stage-h">
+  <h2 id="stage-h">Move to a stage</h2>
+  <form method="post" action="/a/{{ row.id }}/status" class="reasons">
+    <label class="inline">Note <input name="note" placeholder="optional"></label>
+    {% for s in stage_buttons %}<button class="btn" name="status" value="{{ s }}">{{ s }}</button>{% endfor %}
+  </form>
+</section>
+
+<section aria-labelledby="fu-h">
+  <h2 id="fu-h">Follow-up and details</h2>
+  <form method="post" action="/a/{{ row.id }}/details">
+    <label>Next action <input name="next_action" value="{{ row.next_action }}"></label>
+    <label>Next action date <input type="date" name="next_action_date" value="{{ row.next_action_date }}"></label>
+    <label>Contact <input name="contact" value="{{ row.contact }}"></label>
+    <label>Salary <input name="salary" value="{{ row.salary }}"></label>
+    <label>CV variant <input name="cv_variant" value="{{ row.cv_variant }}"></label>
+    <label>CV file <input name="cv_file" value="{{ row.cv_file }}"></label>
+    <label>Job link <input name="job_link" value="{{ row.job_link }}"></label>
+    <label>Notes <textarea name="notes" rows="3">{{ row.notes }}</textarea></label>
+    <button class="btn primary">Save details</button>
+  </form>
+</section>
+
+<section aria-labelledby="ad-h">
+  <h2 id="ad-h">Job ad</h2>
+  <form method="post" action="/a/{{ row.id }}/ad">
+    <label>Ad text <textarea id="ad-text" name="ad_text" rows="10">{{ ad }}</textarea></label>
+    <button class="btn primary">Save ad</button>
+    <button class="btn" type="button" id="copy-prompt" data-prefix="{{ prefix }}">Copy tailor prompt</button>
+    <span id="copy-msg" role="status" class="meta"></span>
+  </form>
+</section>
+
+<section aria-labelledby="tl-h">
+  <h2 id="tl-h">Timeline</h2>
+  <ul class="timeline">
+    {% for e in timeline %}
+      <li><strong>{{ e.date }}</strong> {{ e.from_status or 'new' }} → {{ e.to_status }}{% if e.note %} <span class="meta">{{ e.note }}</span>{% endif %}</li>
+    {% else %}<li class="meta">No events yet.</li>{% endfor %}
+  </ul>
+</section>
+
+<script>
+  document.getElementById('copy-prompt').addEventListener('click', async function () {
+    var text = this.dataset.prefix + '\n' + document.getElementById('ad-text').value;
+    var msg = document.getElementById('copy-msg');
+    try { await navigator.clipboard.writeText(text); msg.textContent = 'Copied.'; }
+    catch (err) { msg.textContent = 'Copy failed: ' + err.message; }
+  });
+</script>
+{% endblock %}
