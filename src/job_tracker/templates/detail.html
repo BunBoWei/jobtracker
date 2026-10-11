@@ -11,6 +11,9 @@
   <button class="btn" type="button" hx-post="/a/{{ row.id }}/open-cv" hx-target="#cv-msg" hx-swap="innerHTML">Open CV</button>
   <span id="cv-msg" role="status" class="meta"></span>
 </p>
+{% if row.status in ('Ready', 'Incomplete') %}
+<div class="actions">{% set r = row %}{% set htmx = false %}{% set back = '/a/' ~ row.id %}{% include "_apply_skip.html" %}</div>
+{% endif %}
 {% if row.skip_reason %}<p class="meta">Skip reason: {{ row.skip_reason }}</p>{% endif %}
 
 {% if dups %}

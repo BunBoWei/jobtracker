@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Queue <span class="meta">{{ total }} ready</span></h1>
 {% for label, rows in groups %}
-  <h2>{{ label }}{% if label != 'Unprioritised' %} priority{% endif %}</h2>
+  <h2 class="group">{{ label }}{% if label != 'Unprioritised' %} priority{% endif %}</h2>
   {% for r in rows %}{% include "_card.html" %}{% endfor %}
 {% else %}
   <p>No jobs waiting. The scan adds suggestions here; you can also <a href="/add">add one yourself</a>.</p>

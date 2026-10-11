@@ -1,0 +1,31 @@
+{# Needs: r (the job), back (where to return), htmx (true on the queue, which swaps the row out), skip_reasons. #}
+{% if r.status in ('Ready', 'Incomplete') %}
+<form class="apply" method="post" action="/a/{{ r.id }}/apply"
+      {% if htmx %}hx-post="/a/{{ r.id }}/apply" hx-target="#card-{{ r.id }}" hx-swap="outerHTML"{% endif %}>
+  <input type="hidden" name="back" value="{{ back }}">
+  <details class="adbox">
+    <summary>+ ad</summary>
+    <textarea name="ad_text" rows="5" placeholder="Paste the job ad (optional)" aria-label="Job ad text"></textarea>
+  </details>
+  <button class="btn primary">Applied</button>
+</form>
+<div class="pop">
+  <button type="button" class="btn" aria-haspopup="true">Skip ▾</button>
+  <div class="pop-body">
+    <form method="post" action="/a/{{ r.id }}/skip" class="menu"
+          {% if htmx %}hx-post="/a/{{ r.id }}/skip" hx-target="#card-{{ r.id }}" hx-swap="outerHTML"{% endif %}>
+      <input type="hidden" name="back" value="{{ back }}">
+      {% for reason in skip_reasons if reason != 'other (type it)' %}
+        <button class="btn" name="reason" value="{{ reason }}">{{ reason }}</button>
+      {% endfor %}
+    </form>
+    <form method="post" action="/a/{{ r.id }}/skip" class="other"
+          {% if htmx %}hx-post="/a/{{ r.id }}/skip" hx-target="#card-{{ r.id }}" hx-swap="outerHTML"{% endif %}>
+      <input type="hidden" name="back" value="{{ back }}">
+      <input type="hidden" name="reason" value="other (type it)">
+      <input name="other_text" placeholder="Other reason" aria-label="Other skip reason">
+      <button class="btn">Skip</button>
+    </form>
+  </div>
+</div>
+{% endif %}

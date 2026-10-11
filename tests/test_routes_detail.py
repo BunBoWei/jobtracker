@@ -83,3 +83,19 @@ def test_stale_reject_does_not_resurrect_a_moved_job(client, store, seed):
     client.post(f"/a/{app_id}/status", data={"status": "Interview"})
     assert client.post(f"/a/{app_id}/reject").status_code == 400
     assert store.get_app(app_id)["status"] == "Interview"
+
+
+def test_detail_page_has_direct_apply_and_skip_for_open_jobs_only(client, seed):
+    ready = seed()
+    html = client.get(f"/a/{ready}").text
+    assert f'action="/a/{ready}/apply"' in html and f'action="/a/{ready}/skip"' in html
+    assert f'name="back" value="/a/{ready}"' in html and 'aria-haspopup="true"' in html
+    moved = seed(status="Applied")
+    html = client.get(f"/a/{moved}").text
+    assert f'action="/a/{moved}/apply"' not in html and f'action="/a/{moved}/skip"' not in html
+
+
+def test_apply_from_detail_page_stays_on_the_job(client, store, seed):
+    app_id = seed()
+    r = client.post(f"/a/{app_id}/apply", data={"back": f"/a/{app_id}"}, follow_redirects=False)
+    assert r.headers["location"] == f"/a/{app_id}" and store.get_app(app_id)["status"] == "Applied"

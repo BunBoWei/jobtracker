@@ -1,34 +1,18 @@
-<article class="card" id="card-{{ r.id }}">
-  <h3><a href="/a/{{ r.id }}">{{ r.company }}</a> <span class="role">{{ r.role }}</span></h3>
-  <p class="meta">{{ r.location or 'Location n/a' }} · {{ r.source or 'Source n/a' }}{% if r.priority %} · {{ r.priority }}{% endif %}</p>
-  {% if r.match_reason %}<p>{{ r.match_reason }}</p>{% endif %}
-  <p>Suggested CV: <strong>{{ r.cv_variant or 'none' }}</strong>{% if r.cv_file %} <span class="meta">({{ r.cv_file }})</span>{% endif %}</p>
+<article class="row" id="card-{{ r.id }}">
+  <div class="main">
+    <div class="head">
+      <h3><a href="/a/{{ r.id }}">{{ r.company }}</a> <span class="role">{{ r.role }}</span></h3>
+      <span class="meta">{{ r.location or 'Location n/a' }} · {{ r.source or 'Source n/a' }}{% if r.priority %} · {{ r.priority }}{% endif %}</span>
+    </div>
+    <p class="why" title="{{ r.match_reason }}{% if r.cv_file %} | CV file: {{ r.cv_file }}{% endif %}">{{ r.match_reason }}<span class="meta"> · CV: {{ r.cv_variant or 'none' }}</span></p>
+  </div>
   <div class="actions">
     {% if r.job_link.lower().startswith(('http://', 'https://')) %}
       <a class="btn" href="{{ r.job_link }}" target="_blank" rel="noopener">Open ad</a>
     {% endif %}
     <button class="btn" type="button" hx-post="/a/{{ r.id }}/open-cv" hx-target="#msg-{{ r.id }}" hx-swap="innerHTML">Open CV</button>
-    <span id="msg-{{ r.id }}" role="status" class="meta"></span>
+    {% set htmx = true %}{% set back = '/' %}
+    {% include "_apply_skip.html" %}
+    <span id="msg-{{ r.id }}" role="status" class="meta msg"></span>
   </div>
-  <details>
-    <summary>Mark applied</summary>
-    <form method="post" action="/a/{{ r.id }}/apply" hx-post="/a/{{ r.id }}/apply" hx-target="#card-{{ r.id }}" hx-swap="outerHTML">
-      <label>Job ad text (optional, saved for tailoring)
-        <textarea name="ad_text" rows="4"></textarea></label>
-      <button class="btn primary">Mark applied</button>
-    </form>
-  </details>
-  <details>
-    <summary>Skip</summary>
-    <form method="post" action="/a/{{ r.id }}/skip" hx-post="/a/{{ r.id }}/skip" hx-target="#card-{{ r.id }}" hx-swap="outerHTML" class="reasons">
-      {% for reason in skip_reasons if reason != 'other (type it)' %}
-        <button class="btn" name="reason" value="{{ reason }}">{{ reason }}</button>
-      {% endfor %}
-    </form>
-    <form method="post" action="/a/{{ r.id }}/skip" hx-post="/a/{{ r.id }}/skip" hx-target="#card-{{ r.id }}" hx-swap="outerHTML" class="reasons">
-      <input type="hidden" name="reason" value="other (type it)">
-      <label class="inline">Other <input name="other_text" placeholder="type a reason"></label>
-      <button class="btn">Skip</button>
-    </form>
-  </details>
 </article>

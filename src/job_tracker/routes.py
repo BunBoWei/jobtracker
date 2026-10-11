@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import re
 import subprocess
 from pathlib import Path
 
@@ -35,6 +36,11 @@ def reply(request: Request, fragment: str, redirect_to: str):
     return RedirectResponse(redirect_to, status_code=303)
 
 
+def _back(path: str) -> str:
+    """Where to return after a form post. Only '/' or one of our job pages: never an arbitrary URL."""
+    return path if re.fullmatch(r"/a/[A-Za-z0-9_-]+", path or "") else "/"
+
+
 def _store(request: Request):
     return request.app.state.store
 
@@ -58,13 +64,13 @@ def queue(request: Request):
 
 
 @router.post("/a/{app_id}/apply")
-def apply(request: Request, app_id: str, ad_text: str = Form("")):
+def apply(request: Request, app_id: str, ad_text: str = Form(""), back: str = Form("/")):
     service.mark_applied(_store(request), app_id, ad_text)
-    return reply(request, "", "/")
+    return reply(request, "", _back(back))
 
 
 @router.post("/a/{app_id}/skip")
-def skip(request: Request, app_id: str, reason: str = Form(...), other_text: str = Form("")):
+def skip(request: Request, app_id: str, reason: str = Form(...), other_text: str = Form(""), back: str = Form("/")):
     if reason == OTHER_REASON:
         reason = other_text.strip()
         if not reason:
@@ -72,7 +78,7 @@ def skip(request: Request, app_id: str, reason: str = Form(...), other_text: str
     elif reason not in SKIP_REASONS:
         raise ValueError("Unknown skip reason.")
     service.skip(_store(request), app_id, reason)
-    return reply(request, "", "/")
+    return reply(request, "", _back(back))
 
 
 @router.post("/a/{app_id}/open-cv")
@@ -113,7 +119,7 @@ def detail(request: Request, app_id: str):
     return render(
         request, "detail.html", row=row, timeline=timeline, ad=store.read_ad(app_id), prefix=tailor_prefix(row),
         dups=find_duplicates(rows, row["company"], row["role"], store.today(), exclude_id=app_id),
-        stage_buttons=STAGE_BUTTONS,
+        stage_buttons=STAGE_BUTTONS, skip_reasons=SKIP_REASONS,
     )
 
 

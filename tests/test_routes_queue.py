@@ -112,4 +112,26 @@ def test_corrupt_csv_shows_error_page_and_file_unchanged(client, store):
 def test_unprioritised_group_heading_reads_naturally(client, seed):
     seed(company="NoPri")
     html = client.get("/").text
-    assert "<h2>Unprioritised</h2>" in html and "Unprioritised priority" not in html
+    assert ">Unprioritised</h2>" in html and "Unprioritised priority" not in html
+
+
+def test_queue_card_has_direct_apply_button_and_one_skip_menu(client, seed):
+    from job_tracker.models import SKIP_REASONS
+
+    seed(company="Acme")
+    html = client.get("/").text
+    assert "<summary>Mark applied</summary>" not in html              # no dropdown to open first
+    assert ">Applied</button>" in html and "+ ad" in html            # one-click apply, optional ad paste
+    assert 'aria-haspopup="true"' in html and "Skip" in html
+    for reason in SKIP_REASONS:
+        if reason != "other (type it)":
+            assert f'value="{reason}"' in html
+    assert 'name="other_text"' in html
+
+
+def test_apply_and_skip_return_to_the_page_they_came_from(client, store, seed):
+    a, b = seed(), seed()
+    r = client.post(f"/a/{a}/apply", data={"back": f"/a/{a}"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/a/{a}"
+    r = client.post(f"/a/{b}/skip", data={"reason": "too senior", "back": "//evil.example/x"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/"       # open redirects are refused
