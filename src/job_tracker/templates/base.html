@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Job Tracker{% endblock %}</title>
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/app.css?v={{ css_version }}">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   <script>
     // Show server error messages (4xx) that HTMX would otherwise discard.
@@ -12,6 +12,10 @@
       var s = e.detail.xhr.status;
       if (s >= 400 && s < 500) { e.detail.shouldSwap = true; e.detail.isError = false; }
     });
+    // Close the Skip popover when clicking elsewhere or pressing Escape.
+    function closeSkip(except) { document.querySelectorAll('details.skip[open]').forEach(function (d) { if (d !== except) d.removeAttribute('open'); }); }
+    document.addEventListener('click', function (e) { closeSkip(e.target.closest('details.skip')); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSkip(null); });
   </script>
 </head>
 <body>

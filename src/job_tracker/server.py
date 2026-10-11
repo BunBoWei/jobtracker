@@ -26,6 +26,7 @@ def create_app(data_dir: Path | None = None, today=date.today) -> FastAPI:
     app.state.store = Store(data_dir or data_dir_from_env(), today=today)
     templates = Jinja2Templates(directory=BASE / "templates")
     templates.env.filters["pct"] = lambda v: "n/a" if v is None else f"{v * 100:.0f}%"
+    templates.env.globals["css_version"] = int((BASE / "static" / "app.css").stat().st_mtime)  # busts browser caches
     app.state.templates = templates
 
     @app.middleware("http")

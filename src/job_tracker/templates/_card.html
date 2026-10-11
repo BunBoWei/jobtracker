@@ -1,18 +1,18 @@
-<article class="row" id="card-{{ r.id }}">
-  <div class="main">
-    <div class="head">
-      <h3><a href="/a/{{ r.id }}">{{ r.company }}</a> <span class="role">{{ r.role }}</span></h3>
-      <span class="meta">{{ r.location or 'Location n/a' }} · {{ r.source or 'Source n/a' }}{% if r.priority %} · {{ r.priority }}{% endif %}</span>
+<article class="card" id="card-{{ r.id }}">
+  <div class="info">
+    <h3><a href="/a/{{ r.id }}">{{ r.company }}</a></h3>
+    <p class="role">{{ r.role }}</p>
+    <p class="meta">{{ r.location or 'Location n/a' }} · {{ r.source or 'Source n/a' }}{% if r.priority %} · {{ r.priority }}{% endif %}</p>
+    {% if r.match_reason %}<p>{{ r.match_reason }}</p>{% endif %}
+    <p>Suggested CV: <strong>{{ r.cv_variant or 'none' }}</strong>{% if r.cv_file %} <span class="meta">({{ r.cv_file }})</span>{% endif %}</p>
+    <div class="actions">
+      {% if r.job_link.lower().startswith(('http://', 'https://')) %}
+        <a class="btn" href="{{ r.job_link }}" target="_blank" rel="noopener">Open ad</a>
+      {% endif %}
+      <button class="btn" type="button" hx-post="/a/{{ r.id }}/open-cv" hx-target="#msg-{{ r.id }}" hx-swap="innerHTML">Open CV</button>
+      <span id="msg-{{ r.id }}" role="status" class="meta"></span>
     </div>
-    <p class="why" title="{{ r.match_reason }}{% if r.cv_file %} | CV file: {{ r.cv_file }}{% endif %}">{{ r.match_reason }}<span class="meta"> · CV: {{ r.cv_variant or 'none' }}</span></p>
   </div>
-  <div class="actions">
-    {% if r.job_link.lower().startswith(('http://', 'https://')) %}
-      <a class="btn" href="{{ r.job_link }}" target="_blank" rel="noopener">Open ad</a>
-    {% endif %}
-    <button class="btn" type="button" hx-post="/a/{{ r.id }}/open-cv" hx-target="#msg-{{ r.id }}" hx-swap="innerHTML">Open CV</button>
-    {% set htmx = true %}{% set back = '/' %}
-    {% include "_apply_skip.html" %}
-    <span id="msg-{{ r.id }}" role="status" class="meta msg"></span>
-  </div>
+  {% set htmx = true %}{% set back = '/' %}{% set show_ad = true %}
+  {% include "_apply_skip.html" %}
 </article>

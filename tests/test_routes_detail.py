@@ -89,7 +89,8 @@ def test_detail_page_has_direct_apply_and_skip_for_open_jobs_only(client, seed):
     ready = seed()
     html = client.get(f"/a/{ready}").text
     assert f'action="/a/{ready}/apply"' in html and f'action="/a/{ready}/skip"' in html
-    assert f'name="back" value="/a/{ready}"' in html and 'aria-haspopup="true"' in html
+    assert f'name="back" value="/a/{ready}"' in html and '<details class="skip">' in html
+    assert 'name="ad_text" rows' not in html.split("Move to a stage")[0]  # the job page already has its own ad box
     moved = seed(status="Applied")
     html = client.get(f"/a/{moved}").text
     assert f'action="/a/{moved}/apply"' not in html and f'action="/a/{moved}/skip"' not in html

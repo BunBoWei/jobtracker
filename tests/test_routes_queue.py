@@ -115,18 +115,27 @@ def test_unprioritised_group_heading_reads_naturally(client, seed):
     assert ">Unprioritised</h2>" in html and "Unprioritised priority" not in html
 
 
-def test_queue_card_has_direct_apply_button_and_one_skip_menu(client, seed):
+def test_queue_card_layout_ad_box_then_applied_and_skip_popover(client, seed):
     from job_tracker.models import SKIP_REASONS
 
-    seed(company="Acme")
+    app_id = seed(company="Acme", match_reason="Java + Spring", cv_variant="Java backend")
     html = client.get("/").text
-    assert "<summary>Mark applied</summary>" not in html              # no dropdown to open first
-    assert ">Applied</button>" in html and "+ ad" in html            # one-click apply, optional ad paste
-    assert 'aria-haspopup="true"' in html and "Skip" in html
+    assert 'class="card"' in html and "Java + Spring" in html and "Java backend" in html   # info stays on the left
+    assert f'<textarea form="apply-{app_id}" name="ad_text"' in html                       # ad box on top
+    assert f'<button form="apply-{app_id}" class="btn primary">Applied</button>' in html   # Applied, bottom left
+    assert html.index(">Applied</button>") < html.index('<details class="skip">') < html.index(">Skip</summary>")
+    assert "<summary>Mark applied</summary>" not in html
     for reason in SKIP_REASONS:
         if reason != "other (type it)":
             assert f'value="{reason}"' in html
     assert 'name="other_text"' in html
+    assert 'aria-haspopup' not in html and "+ ad" not in html
+
+
+def test_stylesheet_link_changes_with_the_file_so_browsers_never_serve_stale_css(client):
+    import re
+
+    assert re.search(r'href="/static/app\.css\?v=\d+"', client.get("/").text)
 
 
 def test_apply_and_skip_return_to_the_page_they_came_from(client, store, seed):
