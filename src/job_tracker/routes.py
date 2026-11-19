@@ -13,7 +13,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import service, stats
-from .models import EDITABLE_FIELDS, OTHER_REASON, SKIP_REASONS, STAGE_BUTTONS, STATUSES, find_duplicates, tailor_prefix
+from .models import (DEFAULT_JOB_TYPE, EDITABLE_FIELDS, JOB_TYPES, OTHER_REASON, REGIONS, SKIP_REASONS, STAGE_BUTTONS,
+                     STATUSES, find_duplicates, job_type_of, region_of, tailor_prefix)
 
 router = APIRouter()
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
@@ -51,16 +52,20 @@ def health():
 
 
 @router.get("/")
-def queue(request: Request):
+def queue(request: Request, region: str = "", job_type: str = ""):
     store = _store(request)
     _, rows = store.read_apps()
-    ready = sorted((r for r in rows if r["status"] == "Ready"), key=lambda r: (r["created_at"], r["id"]), reverse=True)
+    ready = sorted((r for r in rows if r["status"] == "Ready"
+                    and (not region or region_of(r.get("location", "")) == region)
+                    and (not job_type or job_type_of(r) == job_type)),
+                   key=lambda r: (r["created_at"], r["id"]), reverse=True)
     groups: dict[str, list[dict]] = {}
     for r in ready:
         groups.setdefault(r["priority"].strip() or "Unprioritised", []).append(r)
     ordered = sorted(groups.items(), key=lambda kv: (PRIORITY_RANK.get(kv[0].lower(), 3), kv[0]))
     return render(request, "queue.html", active="queue", groups=ordered, total=len(ready),
-                  tally=stats.skip_tally(rows, store.today()), skip_reasons=SKIP_REASONS)
+                  tally=stats.skip_tally(rows, store.today()), skip_reasons=SKIP_REASONS,
+                  regions=REGIONS, job_types=JOB_TYPES, f={"region": region, "job_type": job_type})
 
 
 @router.post("/a/{app_id}/apply")
@@ -119,7 +124,7 @@ def detail(request: Request, app_id: str):
     return render(
         request, "detail.html", row=row, timeline=timeline, ad=store.read_ad(app_id), prefix=tailor_prefix(row),
         dups=find_duplicates(rows, row["company"], row["role"], store.today(), exclude_id=app_id),
-        stage_buttons=STAGE_BUTTONS, skip_reasons=SKIP_REASONS,
+        stage_buttons=STAGE_BUTTONS, skip_reasons=SKIP_REASONS, job_types=JOB_TYPES, job_type=job_type_of(row),
     )
 
 
@@ -143,6 +148,8 @@ async def save_details(request: Request, app_id: str):
     form = await request.form()
     norm = lambda v: (v or "").replace("\r\n", "\n")
     fields = {k: form[k] for k in EDITABLE_FIELDS if k in form and norm(form[k]) != norm(form.get(f"orig_{k}"))}
+    if fields.get("job_type", JOB_TYPES[0]) not in JOB_TYPES:
+        fields.pop("job_type")
     await run_in_threadpool(service.update_details, _store(request), app_id, fields)
     return RedirectResponse(_detail_url(app_id), status_code=303)
 
@@ -173,41 +180,52 @@ def apply_rule(request: Request):
 def all_page(
     request: Request, q: str = "", status: str = "", source: str = "", cv_variant: str = "",
     date_from: str = "", date_to: str = "", sort: str = "last_update", direction: str = Query("desc", alias="dir"),
+    region: str = "", job_type: list[str] = Query(default=[]),
 ):
     _, rows = _store(request).read_apps()
-    found = stats.filter_rows(rows, q, status, source, cv_variant, date_from, date_to, sort, direction)
-    current = {"q": q, "status": status, "source": source, "cv_variant": cv_variant, "date_from": date_from, "date_to": date_to}
+    picked = [t for t in job_type if t in JOB_TYPES]
+    found = stats.filter_rows(rows, q, status, source, cv_variant, date_from, date_to, sort, direction,
+                              region=region, job_types=picked or None)
+    current = {"q": q, "status": status, "source": source, "cv_variant": cv_variant, "date_from": date_from,
+               "date_to": date_to, "region": region, "job_type": picked}
     current = {k: v for k, v in current.items() if v}
     sort_urls = {
-        col: "/all?" + urlencode({**current, "sort": col, "dir": "asc" if (sort == col and direction == "desc") else "desc"})
+        col: "/all?" + urlencode({**current, "sort": col, "dir": "asc" if (sort == col and direction == "desc") else "desc"},
+                                 doseq=True)
         for col in stats.SORTABLE
     }
     return render(
         request, "all.html", active="all", rows=found, f=current, sort=sort, direction=direction, sort_urls=sort_urls,
         statuses=STATUSES, sources=sorted({r["source"] for r in rows if r["source"]}),
         cvs=sorted({r["cv_variant"] for r in rows if r["cv_variant"]}),
+        regions=REGIONS, job_types=JOB_TYPES, region_of=region_of, job_type_of=job_type_of,
     )
 
 
 @router.get("/add")
 def add_form(request: Request):
-    return render(request, "add.html", statuses=["Ready", "Applied", "Incomplete"])
+    return render(request, "add.html", statuses=["Ready", "Applied", "Incomplete"], job_types=JOB_TYPES,
+                  default_job_type=DEFAULT_JOB_TYPE)
 
 
 @router.post("/add")
 def add(
     request: Request, company: str = Form(""), role: str = Form(""), status: str = Form("Ready"),
     location: str = Form(""), source: str = Form(""), job_link: str = Form(""), cv_variant: str = Form(""),
-    cv_file: str = Form(""), notes: str = Form(""),
+    cv_file: str = Form(""), notes: str = Form(""), job_type: str = Form(DEFAULT_JOB_TYPE),
 ):
     app_id = service.add_application(_store(request), dict(
         company=company, role=role, status=status, location=location, source=source,
-        job_link=job_link, cv_variant=cv_variant, cv_file=cv_file, notes=notes))
+        job_link=job_link, cv_variant=cv_variant, cv_file=cv_file, notes=notes,
+        job_type=job_type if job_type in JOB_TYPES else DEFAULT_JOB_TYPE))
     return RedirectResponse(_detail_url(app_id), status_code=303)
 
 
 @router.get("/dashboard")
-def dashboard(request: Request):
+def dashboard(request: Request, job_type: list[str] = Query(default=[])):
+    """Counts only the ticked types of work. Nothing ticked (first visit) means full-time only."""
     store = _store(request)
     _, rows = store.read_apps()
-    return render(request, "dashboard.html", active="dashboard", d=stats.dashboard(rows, store.settings(), store.today()))
+    selected = [t for t in JOB_TYPES if t in job_type] or [DEFAULT_JOB_TYPE]
+    return render(request, "dashboard.html", active="dashboard", job_types=JOB_TYPES, selected=selected,
+                  d=stats.dashboard(rows, store.settings(), store.today(), job_types=selected))

@@ -4,9 +4,10 @@ from __future__ import annotations
 import re
 from datetime import date, timedelta
 
-from .models import POSITIVE, SUBMITTED, TERMINAL, parse_date, row_date, rule_eligible, stage_changed_ids
+from .models import (POSITIVE, SUBMITTED, TERMINAL, job_type_of, parse_date, region_of, row_date,
+                     rule_eligible, stage_changed_ids)
 
-SORTABLE = ("company", "role", "status", "source", "cv_variant", "date_applied", "last_update")
+SORTABLE = ("company", "role", "location", "job_type", "status", "source", "cv_variant", "date_applied", "last_update")
 
 _ROLE_RULES = [
     ("graduate", r"\bgraduate\b|\bgrad\b|\bentry[- ]level\b"),
@@ -47,7 +48,10 @@ def _active_with_date(rows):
             yield d, r
 
 
-def dashboard(rows: list[dict], settings: dict, today: date) -> dict:
+def dashboard(rows: list[dict], settings: dict, today: date, job_types=None) -> dict:
+    """job_types: only count rows of these types (None = every row)."""
+    if job_types:
+        rows = [r for r in rows if job_type_of(r) in job_types]
     submitted = [r for r in rows if r.get("status") in SUBMITTED]
     positive = [r for r in submitted if r["status"] in POSITIVE]
     monday = _monday(today)
@@ -80,6 +84,7 @@ def dashboard(rows: list[dict], settings: dict, today: date) -> dict:
         "by_cv": _breakdown(rows, lambda r: r.get("cv_variant", "").strip()),
         "by_source": _breakdown(rows, lambda r: r.get("source", "").strip()),
         "by_role": _breakdown(rows, lambda r: role_type(r.get("role", ""))),
+        "by_region": _breakdown(rows, lambda r: region_of(r.get("location", ""))),
         "ready": sum(r.get("status") == "Ready" for r in rows),
         "overdue": sum(d < today for d, _ in _active_with_date(rows)),
     }
@@ -114,7 +119,7 @@ def skip_tally(rows: list[dict], today: date, days: int = 30, max_examples: int 
 
 
 def filter_rows(rows, q="", status="", source="", cv_variant="", date_from="", date_to="",
-                sort="last_update", direction="desc") -> list[dict]:
+                sort="last_update", direction="desc", region="", job_types=None) -> list[dict]:
     needle = q.strip().lower()
     start, end = parse_date(date_from), parse_date(date_to)
     out = []
@@ -126,6 +131,10 @@ def filter_rows(rows, q="", status="", source="", cv_variant="", date_from="", d
         if source and r.get("source") != source:
             continue
         if cv_variant and r.get("cv_variant") != cv_variant:
+            continue
+        if region and region_of(r.get("location", "")) != region:
+            continue
+        if job_types and job_type_of(r) not in job_types:
             continue
         if start or end:
             d = row_date(r)

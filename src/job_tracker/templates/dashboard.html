@@ -3,6 +3,17 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+<form method="get" action="/dashboard" class="reasons" aria-label="Type of work">
+  <fieldset>
+    <legend>Type of work</legend>
+    {% for t in job_types %}
+      <label class="inline"><input type="checkbox" name="job_type" value="{{ t }}" {% if t in selected %}checked{% endif %}> {{ t }}</label>
+    {% endfor %}
+    <button class="btn primary">Apply</button>
+  </fieldset>
+</form>
+<p class="meta">Counting: {{ selected|join(', ') }}. Nothing ticked means full-time only.</p>
+
 <section aria-labelledby="week-h">
   <h2 id="week-h">This week</h2>
   <p>{{ d.week_applied }} of {{ d.week_target }} applications</p>
@@ -57,6 +68,7 @@
 {{ breakdown('By CV variant', d.by_cv) }}
 {{ breakdown('By source', d.by_source) }}
 {{ breakdown('By role type', d.by_role) }}
+{{ breakdown('By region', d.by_region) }}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>

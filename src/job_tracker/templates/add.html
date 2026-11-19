@@ -8,6 +8,8 @@
   <label>Status
     <select name="status">{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select></label>
   <label>Location <input name="location"></label>
+  <label>Type of work
+    <select name="job_type">{% for t in job_types %}<option {% if t == default_job_type %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
   <label>Source <input name="source" placeholder="Seek, LinkedIn, Company site"></label>
   <label>Job link <input type="url" name="job_link"></label>
   <label>CV variant <input name="cv_variant"></label>

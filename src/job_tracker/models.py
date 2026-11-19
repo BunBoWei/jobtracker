@@ -7,7 +7,7 @@ from difflib import SequenceMatcher
 
 APP_COLUMNS = [
     "id", "status", "date_applied", "company", "role", "level", "location",
-    "work_mode", "source", "job_link", "job_id", "cv_variant", "cv_file",
+    "work_mode", "job_type", "source", "job_link", "job_id", "cv_variant", "cv_file",
     "priority", "match_reason", "next_action", "next_action_date", "contact",
     "salary", "skip_reason", "notes", "created_at", "last_update",
 ]
@@ -17,6 +17,9 @@ STATUSES = [
     "Ready", "Applied", "Assessment", "Interview", "Final", "Offer",
     "Rejected", "No response", "Withdrawn", "Skipped", "Incomplete",
 ]
+JOB_TYPES = ["Full-time", "Part-time", "Casual", "Contract"]
+DEFAULT_JOB_TYPE = "Full-time"  # a blank job_type (older rows, scan rows) counts as full-time
+
 POSITIVE = {"Assessment", "Interview", "Final", "Offer"}
 SUBMITTED = set(STATUSES) - {"Ready", "Skipped", "Incomplete"}
 TERMINAL = {"Rejected", "Withdrawn", "No response", "Skipped", "Incomplete"}
@@ -38,8 +41,38 @@ DEFAULT_SETTINGS = {
 EDITABLE_FIELDS = (
     "next_action", "next_action_date", "contact", "salary", "notes",
     "cv_variant", "cv_file", "job_link", "priority", "level", "location",
-    "work_mode", "source", "match_reason",
+    "work_mode", "source", "match_reason", "job_type",
 )
+
+# Region buckets worked out from the free-text location (first match wins, so Remote beats a city).
+REGIONS = ["Wollongong/Illawarra", "Sydney", "Remote", "Other NSW", "Interstate", "Other", "Unknown"]
+_REGION_RULES = [
+    ("Remote", r"\bremote\b|work from home|\bwfh\b"),
+    ("Wollongong/Illawarra", r"wollongong|illawarra|shellharbour|kiama|dapto|corrimal|thirroul|fairy meadow|"
+                             r"unanderra|warrawong|figtree|albion park|bulli|port kembla|keiraville|gwynneville"),
+    ("Sydney", r"sydney|parramatta|chatswood|macquarie park|north ryde|\bryde\b|surry hills|ultimo|pyrmont|"
+               r"barangaroo|haymarket|mascot|alexandria|st leonards|norwest|bella vista|liverpool|penrith|"
+               r"blacktown|hornsby|bondi|newtown|redfern|rhodes|olympic park|sutherland|miranda|campbelltown"),
+    ("Other NSW", r"\bnsw\b|new south wales|newcastle|central coast|albury|wagga|dubbo|port macquarie|"
+                  r"coffs harbour|nowra"),
+    ("Interstate", r"melbourne|brisbane|perth|adelaide|canberra|hobart|darwin|gold coast|sunshine coast|"
+                   r"geelong|victoria|queensland|\b(vic|qld|wa|sa|act|tas|nt)\b"),
+]
+
+
+def region_of(location: str) -> str:
+    text = (location or "").strip().lower()
+    if not text:
+        return "Unknown"
+    for name, pattern in _REGION_RULES:
+        if re.search(pattern, text):
+            return name
+    return "Other"
+
+
+def job_type_of(row: dict) -> str:
+    value = (row.get("job_type") or "").strip()
+    return value if value in JOB_TYPES else DEFAULT_JOB_TYPE
 
 
 def parse_date(s) -> date | None:

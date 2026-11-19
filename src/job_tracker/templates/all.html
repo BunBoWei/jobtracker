@@ -13,6 +13,12 @@
   <label class="inline">CV
     <select name="cv_variant"><option value="">Any</option>
       {% for s in cvs %}<option {% if f.cv_variant == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  <label class="inline">Region
+    <select name="region"><option value="">Any</option>
+      {% for g in regions %}<option {% if f.region == g %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+  <fieldset class="inline"><legend>Type</legend>
+    {% for t in job_types %}<label class="inline"><input type="checkbox" name="job_type" value="{{ t }}" {% if t in (f.job_type or []) %}checked{% endif %}> {{ t }}</label>{% endfor %}
+  </fieldset>
   <label class="inline">From <input type="date" name="date_from" value="{{ f.date_from or '' }}"></label>
   <label class="inline">To <input type="date" name="date_to" value="{{ f.date_to or '' }}"></label>
   <input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="dir" value="{{ direction }}">
@@ -22,14 +28,16 @@
 <p role="status">{{ rows|length }} result{{ '' if rows|length == 1 else 's' }}</p>
 <table>
   <thead><tr>
-    {% for col, label in [('company','Company'),('role','Role'),('status','Status'),('source','Source'),('cv_variant','CV'),('date_applied','Applied'),('last_update','Updated')] %}
+    {% for col, label in [('company','Company'),('role','Role'),('location','Location'),('job_type','Type'),('status','Status'),('source','Source'),('cv_variant','CV'),('date_applied','Applied'),('last_update','Updated')] %}
       <th scope="col" {% if sort == col %}aria-sort="{{ 'ascending' if direction == 'asc' else 'descending' }}"{% endif %}>
         <a href="{{ sort_urls[col] }}">{{ label }}</a></th>
     {% endfor %}
   </tr></thead>
   <tbody>
   {% for r in rows %}
-    <tr><td><a href="/a/{{ r.id }}">{{ r.company }}</a></td><td>{{ r.role }}</td><td>{{ r.status }}</td><td>{{ r.source }}</td>
+    <tr><td><a href="/a/{{ r.id }}">{{ r.company }}</a></td><td>{{ r.role }}</td>
+        <td>{{ r.location }}{% if r.location %} <span class="meta">({{ region_of(r.location) }})</span>{% endif %}</td>
+        <td>{{ job_type_of(r) }}</td><td>{{ r.status }}</td><td>{{ r.source }}</td>
         <td>{{ r.cv_variant }}</td><td>{{ r.date_applied }}</td><td>{{ r.last_update }}</td></tr>
   {% endfor %}
   </tbody>
